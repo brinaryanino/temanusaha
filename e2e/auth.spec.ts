@@ -12,7 +12,17 @@ test("alur navigasi autentikasi publik",async({page})=>{
 });
 
 test("halaman privat mengarahkan pengguna tanpa sesi ke login",async({page})=>{
-  test.skip(!process.env.NEXT_PUBLIC_SUPABASE_URL||!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,"Memerlukan proyek Supabase untuk memvalidasi sesi");
   await page.goto("/dashboard");
   await expect(page).toHaveURL(/\/login/);
+});
+
+test("owner dapat masuk dan melihat dashboard dari data Supabase",async({page})=>{
+  await page.goto("/login");
+  await page.getByLabel("Email").fill("owner@temanusaha.local");
+  await page.getByLabel("Kata sandi").fill("DemoOwner123!");
+  await page.getByRole("button",{name:"Masuk"}).click();
+  await expect(page).toHaveURL(/\/dashboard/,{timeout:30_000});
+  await expect(page.getByRole("heading",{name:/Selamat datang, Ayu/})).toBeVisible({timeout:30_000});
+  await expect(page.getByText("Total pelanggan")).toBeVisible({timeout:30_000});
+  await expect(page.getByText("20",{exact:true}).first()).toBeVisible({timeout:30_000});
 });
