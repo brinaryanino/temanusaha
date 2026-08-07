@@ -1,0 +1,223 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  STAFF
+}
+
+enum CustomerStatus {
+  ACTIVE
+  PROSPECT
+  INACTIVE
+}
+
+enum TransactionStatus {
+  DRAFT
+  PAID
+  CANCELLED
+}
+
+enum FollowUpStatus {
+  PENDING
+  COMPLETED
+  SKIPPED
+}
+
+model User {
+  id           String        @id @db.Uuid
+  email        String        @unique
+  name         String
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  memberships  Membership[]
+  transactions Transaction[] @relation("CreatedTransactions")
+  followUps    FollowUp[]    @relation("AssignedFollowUps")
+  interactions Interaction[]
+
+  @@map("users")
+}
+
+model Workspace {
+  id           String        @id @default(uuid()) @db.Uuid
+  name         String
+  slug         String        @unique
+  businessType String?       @map("business_type")
+  currency     String        @default("IDR")
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+  memberships  Membership[]
+  customers    Customer[]
+  products     Product[]
+  transactions Transaction[]
+  followUps    FollowUp[]
+  tags         Tag[]
+  interactions Interaction[]
+
+  @@map("workspaces")
+}
+
+model Membership {
+  id          String    @id @default(uuid()) @db.Uuid
+  workspaceId String    @map("workspace_id") @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  role        Role
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+  @@map("memberships")
+}
+
+model Customer {
+  id               String         @id @default(uuid()) @db.Uuid
+  workspaceId      String         @map("workspace_id") @db.Uuid
+  name             String
+  phone            String?
+  email            String?
+  address          String?
+  source           String?
+  status           CustomerStatus @default(ACTIVE)
+  notes            String?
+  totalSpend       Int            @default(0) @map("total_spend")
+  transactionCount Int            @default(0) @map("transaction_count")
+  lastPurchaseAt   DateTime?      @map("last_purchase_at") @db.Timestamptz
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime       @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt        DateTime?      @map("deleted_at") @db.Timestamptz
+  workspace        Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  transactions     Transaction[]
+  followUps        FollowUp[]
+  tags             CustomerTag[]
+  interactions     Interaction[]
+
+  @@index([workspaceId, name])
+  @@index([workspaceId, phone])
+  @@map("customers")
+}
+
+model Product {
+  id          String            @id @default(uuid()) @db.Uuid
+  workspaceId String            @map("workspace_id") @db.Uuid
+  name        String
+  description String?
+  category    String?
+  price       Int
+  isActive    Boolean           @default(true) @map("is_active")
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime          @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt   DateTime?         @map("deleted_at") @db.Timestamptz
+  workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  items       TransactionItem[]
+
+  @@index([workspaceId, isActive])
+  @@map("products")
+}
+
+model Transaction {
+  id            String            @id @default(uuid()) @db.Uuid
+  workspaceId   String            @map("workspace_id") @db.Uuid
+  customerId    String            @map("customer_id") @db.Uuid
+  invoiceNumber String            @map("invoice_number")
+  status        TransactionStatus @default(PAID)
+  paymentMethod String            @map("payment_method")
+  subtotal      Int
+  discount      Int               @default(0)
+  total         Int
+  notes         String?
+  transactedAt  DateTime          @default(now()) @map("transacted_at") @db.Timestamptz
+  createdBy     String            @map("created_by") @db.Uuid
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime          @updatedAt @map("updated_at") @db.Timestamptz
+  workspace     Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  customer      Customer          @relation(fields: [customerId], references: [id])
+  creator       User              @relation("CreatedTransactions", fields: [createdBy], references: [id])
+  items         TransactionItem[]
+
+  @@unique([workspaceId, invoiceNumber])
+  @@index([workspaceId, transactedAt(sort: Desc)])
+  @@index([customerId, transactedAt(sort: Desc)])
+  @@map("transactions")
+}
+
+model TransactionItem {
+  id                  String      @id @default(uuid()) @db.Uuid
+  transactionId       String      @map("transaction_id") @db.Uuid
+  productId           String?     @map("product_id") @db.Uuid
+  productNameSnapshot String      @map("product_name_snapshot")
+  unitPrice           Int         @map("unit_price")
+  quantity            Int
+  lineTotal           Int         @map("line_total")
+  transaction         Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  product             Product?    @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@map("transaction_items")
+}
+
+model FollowUp {
+  id          String         @id @default(uuid()) @db.Uuid
+  workspaceId String         @map("workspace_id") @db.Uuid
+  customerId  String         @map("customer_id") @db.Uuid
+  assignedTo  String?        @map("assigned_to") @db.Uuid
+  type        String
+  dueAt       DateTime       @map("due_at") @db.Timestamptz
+  status      FollowUpStatus @default(PENDING)
+  notes       String?
+  completedAt DateTime?      @map("completed_at") @db.Timestamptz
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime       @updatedAt @map("updated_at") @db.Timestamptz
+  workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  customer    Customer       @relation(fields: [customerId], references: [id])
+  assignee    User?          @relation("AssignedFollowUps", fields: [assignedTo], references: [id])
+
+  @@index([workspaceId, status, dueAt])
+  @@map("follow_ups")
+}
+
+model Tag {
+  id          String        @id @default(uuid()) @db.Uuid
+  workspaceId String        @map("workspace_id") @db.Uuid
+  name        String
+  color       String        @default("blue")
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  customers   CustomerTag[]
+
+  @@unique([workspaceId, name])
+  @@map("tags")
+}
+
+model CustomerTag {
+  customerId String   @map("customer_id") @db.Uuid
+  tagId      String   @map("tag_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([customerId, tagId])
+  @@map("customer_tags")
+}
+
+model Interaction {
+  id          String    @id @default(uuid()) @db.Uuid
+  workspaceId String    @map("workspace_id") @db.Uuid
+  customerId  String    @map("customer_id") @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  type        String
+  content     String
+  occurredAt  DateTime  @default(now()) @map("occurred_at") @db.Timestamptz
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  customer    Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@index([workspaceId, customerId, occurredAt(sort: Desc)])
+  @@map("interactions")
+}

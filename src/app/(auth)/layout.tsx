@@ -1,0 +1,2 @@
+import { Handshake } from "lucide-react";
+export default function AuthLayout({children}:{children:React.ReactNode}){return <main id="main" className="grid min-h-dvh place-items-center p-4"><section className="w-full max-w-md"><div className="mb-8 flex justify-center gap-3"><span className="grid size-10 place-items-center rounded-xl bg-primary text-white"><Handshake/></span><div><strong className="text-lg">TemanUsaha</strong><p className="text-xs text-muted-foreground">CRM sederhana, usaha lebih dekat</p></div></div>{children}</section></main>}

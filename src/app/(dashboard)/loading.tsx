@@ -1,0 +1,1 @@
+export default function Loading(){return <div aria-label="Memuat halaman" className="animate-pulse space-y-5"><div className="h-16 w-2/5 rounded-xl bg-surface-muted"/><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[1,2,3,4].map(x=><div key={x} className="h-32 rounded-xl bg-surface-muted"/>)}</div><div className="h-80 rounded-xl bg-surface-muted"/></div>}

@@ -1,0 +1,11 @@
+node_modules
+.next
+.env
+.env.local
+playwright-report
+test-results
+coverage
+*.tsbuildinfo
+.agents/
+__pycache__/
+*.pyc

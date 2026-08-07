@@ -1,0 +1,2 @@
+"use client";import { Button } from "@/components/ui/button";
+export default function ErrorPage({reset}:{reset:()=>void}){return <div className="grid min-h-[60vh] place-items-center text-center"><div><h1 className="text-xl font-bold">Data belum dapat dimuat</h1><p className="mt-2 text-muted-foreground">Periksa koneksi lalu coba lagi.</p><Button className="mt-5" onClick={reset}>Coba lagi</Button></div></div>}

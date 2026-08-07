@@ -1,0 +1,5 @@
+import { z } from "zod";
+export const customerSchema = z.object({ name: z.string().trim().min(2).max(100), phone: z.string().trim().max(20).optional(), email: z.email().optional().or(z.literal("")), address: z.string().max(300).optional(), source: z.string().max(50).optional(), status: z.enum(["ACTIVE","PROSPECT","INACTIVE"]), notes: z.string().max(2000).optional() });
+export const productSchema = z.object({ name: z.string().trim().min(2).max(120), description: z.string().max(500).optional(), category: z.string().max(80).optional(), price: z.coerce.number().int().positive().max(2_000_000_000) });
+export const transactionSchema = z.object({ customerId: z.uuid(), paymentMethod: z.string().min(2).max(40), status: z.enum(["DRAFT","PAID","CANCELLED"]), discount: z.coerce.number().int().min(0), notes: z.string().max(1000).optional(), items: z.array(z.object({ productId: z.uuid(), quantity: z.coerce.number().int().positive().max(999) })).min(1) });
+export const followUpSchema = z.object({ customerId: z.uuid(), type: z.string().min(2).max(80), dueAt: z.coerce.date(), notes: z.string().max(1000).optional() });
