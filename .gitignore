@@ -10,3 +10,4 @@ coverage
 skills-lock.json
 __pycache__/
 *.pyc
+*.log
