@@ -19,6 +19,15 @@ test("alur navigasi autentikasi publik",async({page})=>{
   await expect(page.getByRole("heading",{name:"Mulai kelola pelanggan"})).toBeVisible();
 });
 
+test("Supabase menerima permintaan email pemulihan",async({page})=>{
+  test.setTimeout(60_000);
+  await page.goto("/forgot-password");
+  await page.getByLabel("Email").fill("owner@temanusaha.local");
+  await page.getByRole("button",{name:"Kirim tautan pemulihan"}).click();
+  await expect(page.getByText("Jika email terdaftar, tautan pemulihan telah dikirim",{exact:true})).toBeVisible({timeout:30_000});
+});
+
+
 test("halaman privat mengarahkan pengguna tanpa sesi ke login",async({page})=>{
   await page.goto("/dashboard");
   await expect(page).toHaveURL(/\/login/);

@@ -5,23 +5,25 @@ import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/pagination";
+import Link from "next/link";
 import { CustomerForm } from "@/components/forms/customer-form";
 import { addCustomerTag, addInteraction, deleteCustomer, removeCustomerTag, updateCustomer } from "@/server/actions/crm";
 import { formatDate, formatRupiah } from "@/lib/utils";
 import { getSegment } from "@/lib/segmentation";
 import { X } from "lucide-react";
 
-export default async function CustomerDetail({params,searchParams}:{params:Promise<{id:string}>;searchParams:Promise<{success?:string;error?:string}>}) {
-  const ctx=await requireContext(), {id}=await params, p=await searchParams;
-  const customer=await db.customer.findFirst({
+export default async function CustomerDetail({params,searchParams}:{params:Promise<{id:string}>;searchParams:Promise<{success?:string;error?:string;transactionPage?:string}>}) {
+  const ctx=await requireContext(), {id}=await params, p=await searchParams,transactionPage=Math.max(1,Number(p.transactionPage)||1),transactionPageSize=5;
+  const [customer,transactionTotal]=await Promise.all([db.customer.findFirst({
     where:{id,workspaceId:ctx.workspaceId,deletedAt:null},
     include:{
-      transactions:{orderBy:{transactedAt:"desc"},take:5},
+      transactions:{orderBy:{transactedAt:"desc"},skip:(transactionPage-1)*transactionPageSize,take:transactionPageSize},
       followUps:{orderBy:{dueAt:"desc"},take:5},
       tags:{include:{tag:true},orderBy:{createdAt:"asc"}},
       interactions:{include:{user:{select:{name:true}}},orderBy:{occurredAt:"desc"},take:20}
     }
-  });
+  }),db.transaction.count({where:{customerId:id,workspaceId:ctx.workspaceId}})]);
   if(!customer) notFound();
   return <>
     <PageHeader title={customer.name} description={`${getSegment(customer)} • Pelanggan sejak ${formatDate(customer.createdAt)}`}/>
@@ -42,7 +44,7 @@ export default async function CustomerDetail({params,searchParams}:{params:Promi
       </div>
       <div className="space-y-5">
         <Card className="p-5"><h2 className="font-semibold">Ringkasan pembelian</h2><dl className="mt-4 grid grid-cols-2 gap-4"><div><dt className="text-xs text-muted-foreground">Lifetime value</dt><dd className="mt-1 text-xl font-bold tabular-nums">{formatRupiah(customer.totalSpend)}</dd></div><div><dt className="text-xs text-muted-foreground">Transaksi</dt><dd className="mt-1 text-xl font-bold">{customer.transactionCount}</dd></div></dl></Card>
-        <Card className="p-5"><h2 className="font-semibold">Transaksi terakhir</h2><div className="mt-3 space-y-3">{customer.transactions.length?customer.transactions.map(t=><div key={t.id} className="flex justify-between border-t pt-3 text-sm"><span>{t.invoiceNumber}</span><strong>{formatRupiah(t.total)}</strong></div>):<p className="text-sm text-muted-foreground">Belum ada transaksi.</p>}</div></Card>
+        <Card className="p-5"><h2 className="font-semibold">Riwayat transaksi</h2><div className="mt-3 space-y-3">{customer.transactions.length?customer.transactions.map(transaction=><Link key={transaction.id} href={`/transactions/${transaction.id}`} className="flex justify-between border-t pt-3 text-sm hover:text-primary"><span>{transaction.invoiceNumber}</span><strong>{formatRupiah(transaction.total)}</strong></Link>):<p className="text-sm text-muted-foreground">Belum ada transaksi.</p>}</div><Pagination page={transactionPage} total={transactionTotal} pageSize={transactionPageSize} pageParam="transactionPage"/></Card>
         <Card className="p-5"><h2 className="font-semibold">Follow-up terbaru</h2><div className="mt-3 space-y-3">{customer.followUps.length?customer.followUps.map(f=><div key={f.id} className="border-t pt-3 text-sm"><strong>{f.type}</strong><p className="text-xs text-muted-foreground">{formatDate(f.dueAt)} • {f.status}</p></div>):<p className="text-sm text-muted-foreground">Belum ada follow-up.</p>}</div></Card>
         <Card className="p-5"><h2 className="font-semibold">Zona arsip</h2><p className="my-3 text-sm text-muted-foreground">Riwayat transaksi tetap tersimpan setelah pelanggan diarsipkan.</p><form action={deleteCustomer.bind(null,customer.id)}><button className="min-h-11 rounded-lg border border-red-200 px-4 font-semibold text-danger">Arsipkan pelanggan</button></form></Card>
       </div>
